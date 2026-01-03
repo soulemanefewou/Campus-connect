@@ -12,6 +12,7 @@ import type * as comments from "../comments.js";
 import type * as communities from "../communities.js";
 import type * as http from "../http.js";
 import type * as like from "../like.js";
+import type * as messages from "../messages.js";
 import type * as posts from "../posts.js";
 import type * as users from "../users.js";
 
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   communities: typeof communities;
   http: typeof http;
   like: typeof like;
+  messages: typeof messages;
   posts: typeof posts;
   users: typeof users;
 }>;

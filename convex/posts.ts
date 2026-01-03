@@ -11,23 +11,20 @@ export const createPost = mutation({
         content: v.string(),
         communityId: v.optional(v.id("communities")),
         image: v.optional(v.string()),
+        clerkId: v.string(), // Ajouter ce champ pour recevoir l'ID Clerk
     },
     handler: async (ctx, args) => {
-        // Récupérer l'identité de l'utilisateur authentifié
-        const identity = await ctx.auth.getUserIdentity();
-        
-        if (!identity) {
+        // Vérifier que l'ID Clerk est fourni
+        if (!args.clerkId) {
             throw new Error("Non authentifié - Veuillez vous connecter");
         }
 
-        // Vérifier que l'utilisateur existe dans la base de données
+        // Trouver l'utilisateur par son clerkId
         const user = await ctx.db.query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
             .first();
 
         if (!user) {
-            // Si l'utilisateur n'existe pas dans votre base de données,
-            // vous pouvez le créer ici ou lancer une erreur
             throw new Error("Utilisateur non trouvé dans la base de données");
         }
 
@@ -53,6 +50,7 @@ export const createPost = mutation({
         return postId;
     },
 });
+
 
 export const getFeed = query({
     handler: async (ctx) => {
@@ -109,6 +107,45 @@ export const getPost = query({
             communityImageUrl = await ctx.storage.getUrl(community.image) || undefined;
         }
 
+        // Récupérer le nombre de commentaires
+        const comments = await ctx.db.query("comments")
+            .withIndex("by_post", (q) => q.eq("postId", post._id))
+            .collect();
+        
+        // Récupérer les votes (likes)
+        const upvotes = await ctx.db.query("likes")
+            .filter((q) => q.eq(q.field("targetId"), post._id))
+            .filter((q) => q.eq(q.field("targetType"), "post"))
+            .filter((q) => q.eq(q.field("type"), "like"))
+            .collect();
+
+        const downvotes = await ctx.db.query("likes")
+            .filter((q) => q.eq(q.field("targetId"), post._id))
+            .filter((q) => q.eq(q.field("targetType"), "post"))
+            .filter((q) => q.eq(q.field("type"), "dislike"))
+            .collect();
+
+        // Déterminer le vote de l'utilisateur actuel
+        const identity = await ctx.auth.getUserIdentity();
+        let userVote = null;
+        if (identity) {
+            const user = await ctx.db.query("users")
+                .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+                .first();
+
+            if (user) {
+                const userLike = await ctx.db.query("likes")
+                    .filter((q) => q.eq(q.field("targetId"), post._id))
+                    .filter((q) => q.eq(q.field("targetType"), "post"))
+                    .filter((q) => q.eq(q.field("userId"), user._id))
+                    .first();
+                
+                if (userLike) {
+                    userVote = userLike.type; // "like" ou "dislike"
+                }
+            }
+        }
+
         return {
             ...post,
             image: imageUrl,
@@ -120,6 +157,10 @@ export const getPost = query({
                 name: community.name,
                 image: communityImageUrl,
             } : null,
+            commentCount: comments.length,
+            upvotes: upvotes.length,
+            downvotes: downvotes.length,
+            userVote,
         };
     },
 });

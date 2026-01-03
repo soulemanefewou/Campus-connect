@@ -60,14 +60,17 @@ export const createComment = mutation({
   args: {
     postId: v.id("posts"),
     content: v.string(),
+    clerkId: v.string(), // Ajouter ce champ
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
+    // Vérifier que l'ID Clerk est fourni
+    if (!args.clerkId) {
+      throw new Error("Unauthenticated");
+    }
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
       .first();
 
     if (!user) throw new Error("User not found");
@@ -82,14 +85,19 @@ export const createComment = mutation({
 });
 
 export const toggleLike = mutation({
-    args: { commentId: v.id("comments") },
+    args: { 
+      commentId: v.id("comments"),
+      clerkId: v.string(), // Ajouter ce champ
+    },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unauthenticated");
+        // Vérifier que l'ID Clerk est fourni
+        if (!args.clerkId) {
+          throw new Error("Unauthenticated");
+        }
 
         const user = await ctx.db
             .query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
             .first();
 
         if (!user) throw new Error("User not found");

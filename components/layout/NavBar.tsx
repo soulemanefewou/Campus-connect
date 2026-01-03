@@ -1,15 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Home, TrendingUp, Bell, User, LogIn, UserPlus, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { CreateCommunity } from '@/components/communities/CreateCommunity';
+import { Users } from 'lucide-react';
+import { SidebarContent } from '@/components/layout/SidebarLeft';
 
 export function NavBar() {
     const [searchQuery, setSearchQuery] = useState('');
+    const [showCreateCommunity, setShowCreateCommunity] = useState(false);
+
+    useEffect(() => {
+        const handler = () => setShowCreateCommunity(true);
+        window.addEventListener('openCreateCommunity', handler as EventListener);
+        return () => window.removeEventListener('openCreateCommunity', handler as EventListener);
+    }, []);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,12 +38,16 @@ export function NavBar() {
                         {/* Mobile Menu Trigger */}
                         <div className="lg:hidden">
                             <Sheet>
+                                <SheetTitle></SheetTitle>
                                 <SheetTrigger asChild>
                                     <Button variant="ghost" size="icon" className="-ml-2">
                                         <Menu className="h-6 w-6" />
                                     </Button>
                                 </SheetTrigger>
-                                <SheetContent side="left" className="w-[300px] p-0">
+                                <SheetContent side="left" className="w-[85vw] max-w-sm p-0">
+                                    <div className="h-full bg-white">
+                                        <SidebarContent isCollapsed={false} />
+                                    </div>
                                 </SheetContent>
                             </Sheet>
                         </div>
@@ -70,6 +84,19 @@ export function NavBar() {
 
                     {/* Actions droite */}
                     <div className="flex items-center gap-2">
+                        {/* Bouton créer communauté - visible sur toutes tailles */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowCreateCommunity(true)}
+                            title="Créer une communauté"
+                        >
+                            <Users className="h-5 w-5 text-orange-600" />
+                        </Button>
+
+                        {showCreateCommunity && (
+                            <CreateCommunity onClose={() => setShowCreateCommunity(false)} />
+                        )}
                         {/* Recherche Mobile (Icon only) */}
                         <Button variant="ghost" size="icon" className="md:hidden">
                             <Search className="h-5 w-5" />

@@ -19,6 +19,7 @@ import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useUser } from '@clerk/nextjs';
 
 interface PostCardProps {
   id: Id<"posts">;
@@ -54,11 +55,30 @@ export function PostCard({
   userVote,
 }: PostCardProps) {
   const router = useRouter();
+  const { user, isLoaded } = useUser();
   const vote = useMutation(api.like.vote);
 
-  const handleVote = (e: React.MouseEvent, type: "like" | "dislike") => {
+  const handleVote = async (e: React.MouseEvent, type: "like" | "dislike") => {
     e.stopPropagation();
-    vote({ targetId: id, targetType: "post", voteType: type });
+    
+    if (!isLoaded) {
+      return;
+    }
+    
+    if (!user) {
+      return;
+    }
+
+    try {
+      await vote({ 
+        targetId: id, 
+        targetType: "post", 
+        voteType: type,
+        clerkId: user.id 
+      });
+    } catch (error) {
+      console.error("Erreur lors du vote:", error);
+    }
   };
 
   const formatCount = (count: number) => {

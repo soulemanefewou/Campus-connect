@@ -32,12 +32,11 @@ import {
     User
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useStore } from '@/store/useStore';
-import { CreateCommunity } from '../communities/CreateCommunity';
 import { SignedOut, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { mockCommunities } from './SidebarData';
+import { CreateCommunity } from '../communities/CreateCommunity';
 
 export function SidebarContent() {
     const [showCreateModal, setShowCreateModal] = useState(false);

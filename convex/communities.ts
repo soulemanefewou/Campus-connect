@@ -79,16 +79,22 @@ export const createCommunity = mutation({
         description: v.string(),
         image: v.optional(v.string()),
         communityType: v.union(v.literal("public"), v.literal("private")),
+        clerkId: v.string(), // Ajouter ce champ pour recevoir l'ID Clerk
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unauthenticated");
+        // Vérifier que l'ID Clerk est fourni
+        if (!args.clerkId) {
+            throw new Error("Unauthenticated");
+        }
 
+        // Trouver l'utilisateur par son clerkId
         const user = await ctx.db.query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
             .first();
 
-        if (!user) throw new Error("User not found");
+        if (!user) {
+            throw new Error("User not found");
+        }
 
         const existingCommunity = await ctx.db.query("communities")
             .withIndex("by_slug", (q) => q.eq("slug", args.slug))
@@ -103,6 +109,7 @@ export const createCommunity = mutation({
             image: args.image,
             communityType: args.communityType,
             createdBy: user._id,
+            clerkId: args.clerkId,
             createdAt: Date.now(),
         });
 
@@ -150,13 +157,19 @@ export const getCommunityRecommendations = query({
 });
 
 export const joinCommunity = mutation({
-    args: { communityId: v.id("communities") },
+    args: { 
+        communityId: v.id("communities"),
+        clerkId: v.string() // Ajouter clerkId
+    },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unauthenticated");
+        // Vérifier que l'ID Clerk est fourni
+        if (!args.clerkId) {
+            throw new Error("Unauthenticated");
+        }
 
+        // Trouver l'utilisateur par son clerkId
         const user = await ctx.db.query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
             .first();
 
         if (!user) throw new Error("User not found");
@@ -179,13 +192,19 @@ export const joinCommunity = mutation({
 });
 
 export const leaveCommunity = mutation({
-    args: { communityId: v.id("communities") },
+    args: { 
+        communityId: v.id("communities"),
+        clerkId: v.string() // Ajouter clerkId
+    },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unauthenticated");
+        // Vérifier que l'ID Clerk est fourni
+        if (!args.clerkId) {
+            throw new Error("Unauthenticated");
+        }
 
+        // Trouver l'utilisateur par son clerkId
         const user = await ctx.db.query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
             .first();
 
         if (!user) throw new Error("User not found");
@@ -249,7 +268,7 @@ export const getAllCommunities = query({
         const identity = await ctx.auth.getUserIdentity();
         const communities = await ctx.db.query("communities").order("desc").take(50);
         
-        let joinedCommunityIds = new Set<string>();
+        let joinedCommunityIds = new Set<Id<"communities">>();
 
         if (identity) {
              const user = await ctx.db.query("users")
@@ -262,7 +281,11 @@ export const getAllCommunities = query({
                     .filter((q) => q.eq(q.field("targetType"), "community"))
                     .collect();
 
-                follows.forEach(f => joinedCommunityIds.add(f.targetId));
+                follows.forEach(f => {
+                    if (f.targetType === "community") {
+                        joinedCommunityIds.add(f.targetId as Id<"communities">);
+                    }
+                });
             }
         }
 

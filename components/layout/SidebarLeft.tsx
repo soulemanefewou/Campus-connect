@@ -1,36 +1,34 @@
 'use client';
 
-import { useStore } from '@/store/useStore';
-import { ChevronLeft, ChevronRight, Menu } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 
-export default function SidebarLeft() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+// Composant réutilisable pour le contenu de la sidebar
+export function SidebarContent({ isCollapsed = false }: { isCollapsed?: boolean }) {
   const communities = useQuery(api.communities.getUserCommunities);
 
-  // Détecter mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const SidebarContent = () => (
+  return (
     <div className="flex flex-col h-full py-4">
       <div className="px-4 mb-4">
-        {!isCollapsed && <h2 className="text-xl font-bold text-gray-800">Communautés</h2>}
+        <div className="flex items-center justify-between">
+          {!isCollapsed && <h2 className="text-xl font-bold text-gray-800">Communautés</h2>}
+          {/* Bouton créer communauté visible mobile & desktop dans la sidebar */}
+          <div>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('openCreateCommunity'))}
+              className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-orange-500 to-red-600 px-3 py-1 text-sm text-white hover:opacity-95"
+            >
+              <Plus className="h-4 w-4" />
+              {!isCollapsed && <span>Créer</span>}
+            </button>
+          </div>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 px-3">
@@ -85,6 +83,10 @@ export default function SidebarLeft() {
       </ScrollArea>
     </div>
   );
+}
+
+export default function SidebarLeft() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <>
@@ -99,7 +101,7 @@ export default function SidebarLeft() {
             {/* Container avec effet de verre */}
             <div className="h-full rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden">
               {/* Contenu qui gère son propre scroll */}
-              <SidebarContent />
+              <SidebarContent isCollapsed={isCollapsed} />
             </div>
 
             {/* Bouton toggle collapse */}
@@ -117,26 +119,6 @@ export default function SidebarLeft() {
           </div>
         </div>
       </aside>
-
-      {/* Version Mobile - Sheet */}
-      <div className="lg:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden text-gray-600 hover:text-orange-600"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[85vw] max-w-sm p-0">
-            <div className="h-full bg-white">
-              <SidebarContent />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
     </>
   );
 }

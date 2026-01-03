@@ -20,7 +20,7 @@ interface CreatePostProps {
 
 export function CreatePost({ onClose }: CreatePostProps) {
   
-  const { user } = useUser();
+  const { user, isLoaded } = useUser(); // Ajouter isLoaded
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedCommunity, setSelectedCommunity] = useState<string>('profile');
@@ -52,6 +52,18 @@ export function CreatePost({ onClose }: CreatePostProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Vérifier que l'utilisateur est chargé et connecté
+    if (!isLoaded) {
+      toast.error("Chargement de l'authentification...");
+      return;
+    }
+    
+    if (!user) {
+      toast.error("Veuillez vous connecter pour créer un post");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -74,7 +86,7 @@ export function CreatePost({ onClose }: CreatePostProps) {
         storageId = json.storageId;
       }
 
-      // 3. Create post
+      // 3. Create post avec l'ID Clerk
       const communityId = selectedCommunity === 'profile' ? undefined : selectedCommunity as Id<"communities">;
 
       await createPost({
@@ -82,6 +94,7 @@ export function CreatePost({ onClose }: CreatePostProps) {
         content,
         communityId,
         image: storageId,
+        clerkId: user.id,
       });
 
       toast.success('Publication créée avec succès !');
@@ -364,7 +377,7 @@ export function CreatePost({ onClose }: CreatePostProps) {
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || isSubmitting}
+              disabled={!title.trim() || isSubmitting || !user} // Désactiver si pas d'utilisateur
               className="bg-orange-600 hover:bg-orange-700 text-white px-8 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (

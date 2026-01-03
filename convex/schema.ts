@@ -21,6 +21,7 @@ export default defineSchema({
       v.literal("public"),
       v.literal("private")
     ),
+    clerkId: v.optional(v.string()), // Rendu optionnel pour les anciens documents
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
@@ -78,7 +79,8 @@ export default defineSchema({
     type: v.optional(v.union(v.literal("like"), v.literal("dislike"))),
     createdAt: v.number(),
   })
-    .index("by_target", ["targetType", "targetId"]),
+    .index("by_target", ["targetType", "targetId"])
+    .index("by_user", ["userId"]),
 
   messages: defineTable({
     body: v.string(),

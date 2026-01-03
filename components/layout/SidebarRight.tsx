@@ -9,26 +9,47 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, Globe } from 'lucide-react';
+import { useUser } from '@clerk/nextjs'; // Ajouter useUser
 
 export function SidebarRight() {
   const router = useRouter();
+  const { user, isLoaded } = useUser(); // Ajouter useUser
   const communities = useQuery(api.communities.getAllCommunities);
   const joinCommunity = useMutation(api.communities.joinCommunity);
   const leaveCommunity = useMutation(api.communities.leaveCommunity);
 
   const handleToggleFollow = async (e: React.MouseEvent, communityId: Id<"communities">, communityName: string, isJoined: boolean) => {
     e.stopPropagation();
+    
+    // Vérifier que l'utilisateur est connecté
+    if (!isLoaded) {
+      toast.error("Chargement de l'authentification...");
+      return;
+    }
+    
+    if (!user) {
+      toast.error("Veuillez vous connecter pour suivre une communauté");
+      return;
+    }
+
     try {
       if (isJoined) {
-        await leaveCommunity({ communityId });
+        await leaveCommunity({ 
+          communityId,
+          clerkId: user.id // Passer l'ID Clerk
+        });
         toast.success(`Vous ne suivez plus ${communityName}`);
       } else {
-        await joinCommunity({ communityId });
+        await joinCommunity({ 
+          communityId,
+          clerkId: user.id // Passer l'ID Clerk
+        });
         toast.success(`Vous avez rejoint ${communityName}`);
       }
     } catch (error) {
-      toast.error("Erreur lors de l'action");
-      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'action";
+      toast.error(errorMessage);
+      console.error("Erreur lors du suivi de la communauté:", error);
     }
   };
 
@@ -86,8 +107,9 @@ export function SidebarRight() {
                       : "bg-gray-900 text-white hover:bg-gray-800"
                     }`}
                   onClick={(e) => handleToggleFollow(e, community._id, community.name, community.isJoined)}
+                  disabled={!user} // Désactiver si pas connecté
                 >
-                  {community.isJoined ? "Suivi" : "Suivre"}
+                  {community.isJoined ? "Ne plus suivre" : "Suivre"}
                 </Button>
               </div>
             ))

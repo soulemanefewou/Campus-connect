@@ -6,14 +6,18 @@ export const vote = mutation({
     targetId: v.union(v.id("posts"), v.id("comments")),
     targetType: v.union(v.literal("post"), v.literal("comment")),
     voteType: v.union(v.literal("like"), v.literal("dislike")),
+    clerkId: v.string(), // Ajouter clerkId
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthenticated");
+    // Vérifier que l'ID Clerk est fourni
+    if (!args.clerkId) {
+      throw new Error("Unauthenticated");
+    }
 
+    // Trouver l'utilisateur par son clerkId
     const user = await ctx.db
       .query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
       .first();
 
     if (!user) throw new Error("User not found");
