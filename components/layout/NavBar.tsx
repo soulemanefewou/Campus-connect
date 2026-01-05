@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Home, TrendingUp, Bell, User, LogIn, UserPlus, Menu } from 'lucide-react';
+import { Search, Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { CreateCommunity } from '@/components/communities/CreateCommunity';
 import { Users } from 'lucide-react';
-import { SidebarContent } from '@/components/layout/SidebarLeft';
+import { SidebarContent } from '@/components/layout/SidebarLeft'; // Assurez-vous que le chemin est correct
 
 export function NavBar() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -38,7 +38,6 @@ export function NavBar() {
                         {/* Mobile Menu Trigger */}
                         <div className="lg:hidden">
                             <Sheet>
-                                <SheetTitle></SheetTitle>
                                 <SheetTrigger asChild>
                                     <Button variant="ghost" size="icon" className="-ml-2">
                                         <Menu className="h-6 w-6" />
@@ -46,6 +45,7 @@ export function NavBar() {
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-[85vw] max-w-sm p-0">
                                     <div className="h-full bg-white">
+                                        {/* Utiliser SidebarContent dans le menu mobile */}
                                         <SidebarContent isCollapsed={false} />
                                     </div>
                                 </SheetContent>
@@ -74,11 +74,6 @@ export function NavBar() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full rounded-full pl-10 pr-4"
                             />
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500">
-                                    Ctrl+K
-                                </span>
-                            </div>
                         </form>
                     </div>
 
@@ -97,6 +92,7 @@ export function NavBar() {
                         {showCreateCommunity && (
                             <CreateCommunity onClose={() => setShowCreateCommunity(false)} />
                         )}
+
                         {/* Recherche Mobile (Icon only) */}
                         <Button variant="ghost" size="icon" className="md:hidden">
                             <Search className="h-5 w-5" />
@@ -114,43 +110,24 @@ export function NavBar() {
 
                         {/* Actions d'authentification */}
                         <SignedIn>
-                            <>
-                                {/* Menu utilisateur */}
-                                <UserButton />
-                            </>
+                            <UserButton />
                         </SignedIn>
                         <SignedOut>
-                            <>
-                                {/* Boutons connexion/inscription - Desktop */}
-                                <div className="hidden items-center gap-2 sm:flex">
-                                    <Link href="/sign-in">
-                                        <Button variant="outline" className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800">
-                                            <LogIn className="h-4 w-4" />
-                                            Se connecter
-                                        </Button>
-                                    </Link>
-                                    <Link href="/sign-up">
-                                        <Button className="gap-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700">
-                                            <UserPlus className="h-4 w-4" />
-                                            S'inscrire
-                                        </Button>
-                                    </Link>
-                                </div>
-
-                                {/* Version mobile - Boutons via le menu hamburger (Sidebar) maintenant */}
-                                {/* Plus de bouton Auth dédié ici pour cleaner la navbar */}
-                            </>
+                            <div className="hidden items-center gap-2 sm:flex">
+                                <Link href="/sign-in">
+                                    <Button variant="outline" className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800">
+                                        Se connecter
+                                    </Button>
+                                </Link>
+                                <Link href="/sign-up">
+                                    <Button className="gap-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700">
+                                        S'inscrire
+                                    </Button>
+                                </Link>
+                            </div>
                         </SignedOut>
                     </div>
                 </div>
-
-                {/* Navigation mobile secondaire (si nécessaire) */}
-                {/* <div className="flex items-center justify-between border-t py-2 md:hidden">
-          <Button variant="ghost" size="sm" className="flex-1">
-            <Search className="mr-2 h-4 w-4" />
-            Rechercher
-          </Button>
-        </div> */}
             </div>
         </nav>
     );

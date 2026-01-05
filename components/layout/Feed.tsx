@@ -153,12 +153,15 @@ const Feed = () => {
                         key={post._id}
                         id={post._id}
                         title={post.title}
-                        content= {post.title}
+                        content={post.content}
                         createdAt={post.createdAt}
                         image={post.image}
                         author={post.author}
                         community={post.community}
-                  
+                        comments={post.commentCount}
+                        upvotes={post.upvotes}
+                        downvotes={post.downvotes}
+                        userVote={post.userVote}
                     />
 
                 ))

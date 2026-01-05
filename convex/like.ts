@@ -31,7 +31,7 @@ export const vote = mutation({
           q.eq(q.field("targetId"), args.targetId)
         )
       )
-      .first();
+      .first(); 
 
     if (existingVote) {
       if (existingVote.type === args.voteType) {

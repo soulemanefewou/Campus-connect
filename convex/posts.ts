@@ -54,7 +54,16 @@ export const createPost = mutation({
 
 export const getFeed = query({
     handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
         const posts = await ctx.db.query("posts").order("desc").take(50);
+
+        // Récupérer l'utilisateur actuel si connecté
+        let currentUser = null;
+        if (identity) {
+            currentUser = await ctx.db.query("users")
+                .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+                .first();
+        }
 
         return await Promise.all(
             posts.map(async (post) => {
@@ -71,6 +80,35 @@ export const getFeed = query({
                    communityImageUrl = await ctx.storage.getUrl(community.image) || undefined;
                 }
 
+                // Récupérer le nombre de commentaires
+                const comments = await ctx.db.query("comments")
+                    .withIndex("by_post", (q) => q.eq("postId", post._id))
+                    .collect();
+
+                // Récupérer les votes (likes)
+                const upvotes = await ctx.db.query("likes")
+                    .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
+                    .filter((q) => q.eq(q.field("type"), "like"))
+                    .collect();
+
+                const downvotes = await ctx.db.query("likes")
+                    .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
+                    .filter((q) => q.eq(q.field("type"), "dislike"))
+                    .collect();
+
+                // Déterminer le vote de l'utilisateur actuel
+                let userVote: "like" | "dislike" | undefined = undefined;
+                if (currentUser) {
+                    const userLike = await ctx.db.query("likes")
+                        .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
+                        .filter((q) => q.eq(q.field("userId"), currentUser._id))
+                        .first();
+                    
+                    if (userLike && userLike.type) {
+                        userVote = userLike.type as "like" | "dislike";
+                    }
+                }
+
                 return {
                     ...post,
                     image: imageUrl,
@@ -82,6 +120,10 @@ export const getFeed = query({
                         name: community.name,
                         image: communityImageUrl,
                     } : null,
+                    commentCount: comments.length,
+                    upvotes: upvotes.length,
+                    downvotes: downvotes.length,
+                    userVote,
                 };
             })
     );
@@ -114,20 +156,18 @@ export const getPost = query({
         
         // Récupérer les votes (likes)
         const upvotes = await ctx.db.query("likes")
-            .filter((q) => q.eq(q.field("targetId"), post._id))
-            .filter((q) => q.eq(q.field("targetType"), "post"))
+            .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
             .filter((q) => q.eq(q.field("type"), "like"))
             .collect();
 
         const downvotes = await ctx.db.query("likes")
-            .filter((q) => q.eq(q.field("targetId"), post._id))
-            .filter((q) => q.eq(q.field("targetType"), "post"))
+            .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
             .filter((q) => q.eq(q.field("type"), "dislike"))
             .collect();
 
         // Déterminer le vote de l'utilisateur actuel
         const identity = await ctx.auth.getUserIdentity();
-        let userVote = null;
+        let userVote: "like" | "dislike" | undefined = undefined;
         if (identity) {
             const user = await ctx.db.query("users")
                 .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
@@ -135,13 +175,12 @@ export const getPost = query({
 
             if (user) {
                 const userLike = await ctx.db.query("likes")
-                    .filter((q) => q.eq(q.field("targetId"), post._id))
-                    .filter((q) => q.eq(q.field("targetType"), "post"))
+                    .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
                     .filter((q) => q.eq(q.field("userId"), user._id))
                     .first();
                 
-                if (userLike) {
-                    userVote = userLike.type; // "like" ou "dislike"
+                if (userLike && userLike.type) {
+                    userVote = userLike.type as "like" | "dislike";
                 }
             }
         }
@@ -160,7 +199,7 @@ export const getPost = query({
             commentCount: comments.length,
             upvotes: upvotes.length,
             downvotes: downvotes.length,
-            userVote,
+            userVote: userVote || undefined,
         };
     },
 });
@@ -168,10 +207,19 @@ export const getPost = query({
 export const getCommunityPosts = query({
     args: { communityId: v.id("communities") },
     handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
         const posts = await ctx.db.query("posts")
             .withIndex("by_community", (q) => q.eq("communityId", args.communityId))
             .order("desc")
             .take(50);
+
+        // Récupérer l'utilisateur actuel si connecté
+        let currentUser = null;
+        if (identity) {
+            currentUser = await ctx.db.query("users")
+                .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+                .first();
+        }
 
         return await Promise.all(
             posts.map(async (post) => {
@@ -188,6 +236,35 @@ export const getCommunityPosts = query({
                    communityImageUrl = await ctx.storage.getUrl(community.image) || undefined;
                 }
 
+                // Récupérer le nombre de commentaires
+                const comments = await ctx.db.query("comments")
+                    .withIndex("by_post", (q) => q.eq("postId", post._id))
+                    .collect();
+
+                // Récupérer les votes (likes)
+                const upvotes = await ctx.db.query("likes")
+                    .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
+                    .filter((q) => q.eq(q.field("type"), "like"))
+                    .collect();
+
+                const downvotes = await ctx.db.query("likes")
+                    .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
+                    .filter((q) => q.eq(q.field("type"), "dislike"))
+                    .collect();
+
+                // Déterminer le vote de l'utilisateur actuel
+                let userVote: "like" | "dislike" | undefined = undefined;
+                if (currentUser) {
+                    const userLike = await ctx.db.query("likes")
+                        .withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id))
+                        .filter((q) => q.eq(q.field("userId"), currentUser._id))
+                        .first();
+                    
+                    if (userLike && userLike.type) {
+                        userVote = userLike.type as "like" | "dislike";
+                    }
+                }
+
                 return {
                     ...post,
                     image: imageUrl,
@@ -199,6 +276,10 @@ export const getCommunityPosts = query({
                         name: community.name,
                         image: communityImageUrl,
                     } : null,
+                    commentCount: comments.length,
+                    upvotes: upvotes.length,
+                    downvotes: downvotes.length,
+                    userVote,
                 };
             })
         );

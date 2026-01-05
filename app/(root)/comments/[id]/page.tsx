@@ -57,6 +57,10 @@ export default function CommentsPage() {
                 image={post.image}
                 author={post.author}
                 community={post.community}
+                comments={post.commentCount}
+                upvotes={post.upvotes}
+                downvotes={post.downvotes}
+                userVote={post.userVote}
             />
 
             <div className="bg-white rounded-xl border border-gray-200 p-6">

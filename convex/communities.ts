@@ -9,12 +9,15 @@ export const getCommunities = query({
 });
 
 export const getUserCommunities = query({
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return [];
+    args: {
+        clerkId: v.optional(v.string()), // Ajouter clerkId comme argument optionnel
+    },
+    handler: async (ctx, args) => {
+        // Utiliser clerkId passé en argument au lieu de ctx.auth.getUserIdentity()
+        if (!args.clerkId) return [];
 
         const user = await ctx.db.query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
             .first();
 
         if (!user) return [];
@@ -29,11 +32,17 @@ export const getUserCommunities = query({
                 if (follow.targetType === "community") {
                     const community = await ctx.db.get(follow.targetId as Id<"communities">);
                     if (!community) return null;
+                    
+                    // Récupérer l'URL de l'image si elle existe
+                    let imageUrl = undefined;
                     if (community.image) {
-                        const imageUrl = await ctx.storage.getUrl(community.image);
-                        return { ...community, image: imageUrl || undefined };
+                        imageUrl = await ctx.storage.getUrl(community.image);
                     }
-                    return community;
+                    
+                    return { 
+                        ...community, 
+                        image: imageUrl || undefined 
+                    };
                 }
                 return null;
             })
@@ -222,18 +231,21 @@ export const leaveCommunity = mutation({
 });
 
 export const getCommunity = query({
-    args: { communityId: v.id("communities") },
+    args: { 
+        communityId: v.id("communities"),
+        clerkId: v.optional(v.string()), // Ajouter clerkId optionnel
+    },
     handler: async (ctx, args) => {
         const community = await ctx.db.get(args.communityId);
         if (!community) return null;
 
-        const identity = await ctx.auth.getUserIdentity();
         let isJoined = false;
         
-        if (identity) {
-             const user = await ctx.db.query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
-            .first();
+        // Utiliser clerkId passé en argument
+        if (args.clerkId) {
+            const user = await ctx.db.query("users")
+                .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId as string))
+                .first();
 
             if (user) {
                 const follow = await ctx.db.query("follows")
@@ -264,16 +276,19 @@ export const getCommunity = query({
 });
 
 export const getAllCommunities = query({
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
+    args: {
+        clerkId: v.optional(v.string()), // Rendre optionnel pour les utilisateurs non connectés
+    },
+    handler: async (ctx, args) => {
         const communities = await ctx.db.query("communities").order("desc").take(50);
         
         let joinedCommunityIds = new Set<Id<"communities">>();
 
-        if (identity) {
-             const user = await ctx.db.query("users")
-            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
-            .first();
+        // Utiliser clerkId passé en argument au lieu de ctx.auth.getUserIdentity()
+        if (args.clerkId) {
+            const user = await ctx.db.query("users")
+                .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId as string))
+                .first();
 
             if (user) {
                 const follows = await ctx.db.query("follows")

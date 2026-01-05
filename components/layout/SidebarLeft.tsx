@@ -8,10 +8,24 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
+import { useUser } from '@clerk/nextjs'; // Importer useUser
 
 // Composant réutilisable pour le contenu de la sidebar
 export function SidebarContent({ isCollapsed = false }: { isCollapsed?: boolean }) {
-  const communities = useQuery(api.communities.getUserCommunities);
+  const { user } = useUser(); // Récupérer l'utilisateur
+  
+  // Passer clerkId à la query
+  const communities = useQuery(api.communities.getUserCommunities, {
+    clerkId: user?.id || undefined // Passer l'ID Clerk
+  });
+
+  const handleCreateCommunity = () => {
+    // Créer un event personnalisé pour ouvrir le modal de création
+    const event = new CustomEvent('openCreateCommunity', { 
+      detail: { source: 'sidebar' }
+    });
+    window.dispatchEvent(event);
+  };
 
   return (
     <div className="flex flex-col h-full py-4">
@@ -21,8 +35,9 @@ export function SidebarContent({ isCollapsed = false }: { isCollapsed?: boolean 
           {/* Bouton créer communauté visible mobile & desktop dans la sidebar */}
           <div>
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent('openCreateCommunity'))}
-              className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-orange-500 to-red-600 px-3 py-1 text-sm text-white hover:opacity-95"
+              onClick={handleCreateCommunity}
+              className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-orange-500 to-red-600 px-3 py-1 text-sm text-white hover:opacity-95 transition-opacity"
+              title="Créer une communauté"
             >
               <Plus className="h-4 w-4" />
               {!isCollapsed && <span>Créer</span>}
@@ -37,7 +52,7 @@ export function SidebarContent({ isCollapsed = false }: { isCollapsed?: boolean 
           <Link href="/" passHref>
             <Button
               variant="ghost"
-              className={`w-full justify-start ${isCollapsed ? 'px-2' : ''}`}
+              className={`w-full justify-start hover:bg-gray-50 ${isCollapsed ? 'px-2' : 'px-3'}`}
             >
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shrink-0">
                 <span className="text-white font-bold text-sm">C</span>
@@ -48,24 +63,51 @@ export function SidebarContent({ isCollapsed = false }: { isCollapsed?: boolean 
 
           <div className="my-4 border-t border-gray-100" />
 
-          {!isCollapsed && <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Vos Communautés</h3>}
+          {!isCollapsed && (
+            <div className="px-2 mb-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Vos Communautés
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">
+                {communities?.length || 0} communauté(s)
+              </p>
+            </div>
+          )}
 
           {communities === undefined ? (
-            // Loading skeleton
+            // Loading skeleton - adapté pour collapsed/non-collapsed
             Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 p-2">
+              <div key={i} className={`flex items-center gap-3 p-2 ${isCollapsed ? 'justify-center' : ''}`}>
                 <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
-                {!isCollapsed && <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />}
+                {!isCollapsed && <div className="h-4 flex-1 bg-gray-200 rounded animate-pulse" />}
               </div>
             ))
           ) : communities.length === 0 ? (
-            !isCollapsed && <div className="px-2 text-sm text-gray-500 italic">Vous n'avez rejoint aucune communauté.</div>
+            !isCollapsed && (
+              <div className="px-2 py-3 text-center">
+                <div className="text-sm text-gray-500 mb-2">Vous n'avez rejoint aucune communauté.</div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCreateCommunity}
+                  className="w-full border-dashed"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Rejoindre une communauté
+                </Button>
+              </div>
+            )
           ) : (
             communities.map((community) => (
-              <Link key={community._id} href={`/communities/${community._id}`} passHref className="w-full">
+              <Link 
+                key={community._id} 
+                href={`/communities/${community._id}`} 
+                className="block w-full"
+              >
                 <Button
                   variant="ghost"
-                  className={`w-full justify-start mb-1 h-auto py-2 ${isCollapsed ? 'px-2' : ''}`}
+                  className={`w-full justify-start hover:bg-gray-50 mb-1 h-auto py-2 ${isCollapsed ? 'px-2' : 'px-3'}`}
+                  title={isCollapsed ? `r/${community.name}` : undefined}
                 >
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarImage src={community.image} />
@@ -73,12 +115,22 @@ export function SidebarContent({ isCollapsed = false }: { isCollapsed?: boolean 
                       {community.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  {!isCollapsed && <span className="ml-3 font-medium text-gray-700 truncate">{community.name}</span>}
+                  {!isCollapsed && (
+                    <div className="ml-3 text-left overflow-hidden">
+                      <span className="font-medium text-gray-700 truncate block">
+                        r/{community.name}
+                      </span>
+                      {community.description && (
+                        <span className="text-xs text-gray-500 truncate block">
+                          {community.description}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </Button>
               </Link>
             ))
           )}
-
         </div>
       </ScrollArea>
     </div>

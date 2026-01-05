@@ -82,6 +82,9 @@ export function PostCard({
   };
 
   const formatCount = (count: number) => {
+    if (count >= 1000000) {
+      return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+    }
     if (count >= 1000) {
       return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     }
@@ -218,7 +221,7 @@ export function PostCard({
             <Button
               variant="ghost"
               size="sm"
-              className={`h-8 px-3 rounded-none hover:bg-gray-100 ${userVote === 'dislike' ? 'text-red-600 bg-red-50' : 'text-gray-600'
+              className={`h-8 gap-1.5 px-3 rounded-none hover:bg-gray-100 ${userVote === 'dislike' ? 'text-red-600 bg-red-50' : 'text-gray-600'
                 }`}
               onClick={(e) => handleVote(e, "dislike")}
             >
@@ -237,7 +240,7 @@ export function PostCard({
                   <ThumbsDown className="h-4 w-4" />
                 )}
               </AnimatePresence>
-              {/* Optional: Show downvotes check boolean or preference */}
+              <span className="font-medium text-sm">{formatCount(downvotes)}</span>
             </Button>
           </div>
 

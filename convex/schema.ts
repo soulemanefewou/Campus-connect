@@ -11,6 +11,16 @@ export default defineSchema({
   })
     .index("by_clerkId", ["clerkId"])
     .index("by_username", ["username"]),
+    typingIndicators: defineTable({
+      typingId: v.string(), // communautéId-utilisateurId
+      userId: v.id("users"),
+      communityId: v.id("communities"),
+      username: v.string(),
+      lastTyping: v.number(),
+    })
+      .index("by_typingId", ["typingId"])
+      .index("by_community", ["communityId"]),
+  
 
   communities: defineTable({
     name: v.string(),              

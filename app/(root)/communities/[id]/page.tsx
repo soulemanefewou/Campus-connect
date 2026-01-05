@@ -13,20 +13,38 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChatInterface } from '@/components/communities/ChatInterface';
 import { useUser } from '@clerk/nextjs';
+import { useState, useEffect } from 'react'; // Ajouter useEffect
 
 export default function CommunityPage() {
     const params = useParams();
-    const { user, isLoaded  } = useUser();
+    const { user, isLoaded } = useUser();
     const communityId = params.id as Id<"communities">;
+    
+    // État local pour un feedback immédiat
+    const [localIsJoined, setLocalIsJoined] = useState<boolean>(false);
+    const [localMemberCount, setLocalMemberCount] = useState<number>(0);
 
-    const community = useQuery(api.communities.getCommunity, { communityId });
+    // Passer clerkId à la query
+    const community = useQuery(api.communities.getCommunity, { 
+        communityId,
+        clerkId: user?.id || undefined 
+    });
+
     const posts = useQuery(api.posts.getCommunityPosts, { communityId });
 
     const joinCommunity = useMutation(api.communities.joinCommunity);
     const leaveCommunity = useMutation(api.communities.leaveCommunity);
 
+    // Synchroniser l'état local avec les données de la query
+    useEffect(() => {
+        if (community) {
+            setLocalIsJoined(community.isJoined);
+            setLocalMemberCount(community.memberCount);
+        }
+    }, [community]);
+
     const handleToggleJoin = async () => {
-        if (!community) return;
+        if (!community || !user) return;
         
         if (!isLoaded) {
             toast.error("Chargement de l'authentification...");
@@ -38,15 +56,31 @@ export default function CommunityPage() {
             return;
         }
 
+        // Mise à jour immédiate de l'état local pour un feedback instantané
+        const wasJoined = localIsJoined;
+        const newIsJoined = !wasJoined;
+        setLocalIsJoined(newIsJoined);
+        setLocalMemberCount(prev => newIsJoined ? prev + 1 : prev - 1);
+
         try {
-            if (community.isJoined) {
-                await leaveCommunity({ communityId, clerkId: user.id });
+            if (wasJoined) {
+                await leaveCommunity({ 
+                    communityId, 
+                    clerkId: user.id 
+                });
                 toast.success(`Vous avez quitté ${community.name}`);
             } else {
-                await joinCommunity({ communityId, clerkId: user.id });
+                await joinCommunity({ 
+                    communityId, 
+                    clerkId: user.id 
+                });
                 toast.success(`Vous avez rejoint ${community.name}`);
             }
         } catch (error) {
+            // En cas d'erreur, revenir à l'état précédent
+            setLocalIsJoined(wasJoined);
+            setLocalMemberCount(prev => wasJoined ? prev + 1 : prev - 1);
+            
             const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'action";
             toast.error(errorMessage);
             console.error("Erreur lors du suivi de la communauté:", error);
@@ -101,9 +135,14 @@ export default function CommunityPage() {
                         <div className="flex gap-2">
                             <Button
                                 onClick={handleToggleJoin}
-                                className={community.isJoined ? "bg-white text-gray-800 border-gray-300 hover:bg-gray-50 hover:text-red-600 border" : "bg-gray-900 text-white hover:bg-gray-800"}
+                                className={
+                                    localIsJoined 
+                                        ? "bg-white text-gray-800 border-gray-300 hover:bg-gray-50 hover:text-red-600 border" 
+                                        : "bg-gray-900 text-white hover:bg-gray-800"
+                                }
+                                disabled={!user}
                             >
-                                {community.isJoined ? "Ne plus suivre" : "Rejoindre"}
+                                {localIsJoined ? "Ne plus suivre" : "Suivre"}
                             </Button>
                         </div>
                     </div>
@@ -115,7 +154,7 @@ export default function CommunityPage() {
                         <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
                             <div className="flex items-center gap-1">
                                 <Users className="h-4 w-4" />
-                                <span className="font-semibold text-gray-900">{community.memberCount}</span>
+                                <span className="font-semibold text-gray-900">{localMemberCount}</span>
                                 <span>membres</span>
                             </div>
                         </div>
@@ -141,7 +180,6 @@ export default function CommunityPage() {
                         </div>
                     ) : (
                         posts.map((post) => (
-                            // @ts-ignore - Types mismatch until codegen
                             <PostCard
                                 key={post._id}
                                 id={post._id}
@@ -151,6 +189,10 @@ export default function CommunityPage() {
                                 image={post.image}
                                 author={post.author}
                                 community={post.community}
+                                comments={0} // À ajuster si votre query retourne ces champs
+                                upvotes={0} // À ajuster
+                                downvotes={0} // À ajuster
+                                userVote={undefined} // À ajuster
                             />
                         ))
                     )}
@@ -163,9 +205,9 @@ export default function CommunityPage() {
                 <TabsContent value="members" className="mt-0">
                     <div className="bg-white rounded-xl border border-gray-200 p-6">
                         <h2 className="text-lg font-bold mb-4">Membres récents</h2>
-                        {community.memberCount > 0 ? (
+                        {localMemberCount > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Array.from({ length: community.memberCount }).map((_, index) => (
+                                {Array.from({ length: Math.min(localMemberCount, 9) }).map((_, index) => (
                                     <div key={index} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-colors cursor-pointer">
                                         <Avatar className="h-10 w-10">
                                             <AvatarFallback>{String.fromCharCode(65 + index)}</AvatarFallback>
@@ -178,7 +220,7 @@ export default function CommunityPage() {
                             <p className="text-gray-500 italic">Aucun membre visible.</p>
                         )}
 
-                        {community.memberCount > 5 && (
+                        {localMemberCount > 9 && (
                             <div className="mt-6 text-center">
                                 <Button variant="outline" size="sm">Voir tous les membres</Button>
                             </div>

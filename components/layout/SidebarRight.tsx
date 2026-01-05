@@ -9,19 +9,40 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, Globe } from 'lucide-react';
-import { useUser } from '@clerk/nextjs'; // Ajouter useUser
+import { useUser } from '@clerk/nextjs';
+import { useEffect, useState } from 'react';
 
 export function SidebarRight() {
   const router = useRouter();
-  const { user, isLoaded } = useUser(); // Ajouter useUser
-  const communities = useQuery(api.communities.getAllCommunities);
+  const { user, isLoaded } = useUser();
+  const [localFollowStates, setLocalFollowStates] = useState<Record<string, boolean>>({});
+  
+  // Passer clerkId à la query
+  const communities = useQuery(api.communities.getAllCommunities, {
+    clerkId: user?.id
+  });
+  
   const joinCommunity = useMutation(api.communities.joinCommunity);
   const leaveCommunity = useMutation(api.communities.leaveCommunity);
 
-  const handleToggleFollow = async (e: React.MouseEvent, communityId: Id<"communities">, communityName: string, isJoined: boolean) => {
+  useEffect(() => {
+    if (communities) {
+      const newStates: Record<string, boolean> = {};
+      communities.forEach(community => {
+        newStates[community._id] = community.isJoined;
+      });
+      setLocalFollowStates(newStates);
+    }
+  }, [communities]);
+
+  const handleToggleFollow = async (
+    e: React.MouseEvent, 
+    communityId: Id<"communities">, 
+    communityName: string, 
+    isJoined: boolean
+  ) => {
     e.stopPropagation();
     
-    // Vérifier que l'utilisateur est connecté
     if (!isLoaded) {
       toast.error("Chargement de l'authentification...");
       return;
@@ -36,16 +57,21 @@ export function SidebarRight() {
       if (isJoined) {
         await leaveCommunity({ 
           communityId,
-          clerkId: user.id // Passer l'ID Clerk
+          clerkId: user.id
         });
         toast.success(`Vous ne suivez plus ${communityName}`);
       } else {
         await joinCommunity({ 
           communityId,
-          clerkId: user.id // Passer l'ID Clerk
+          clerkId: user.id
         });
         toast.success(`Vous avez rejoint ${communityName}`);
       }
+      
+      // Important : Forcer le rechargement de la query
+      // En Convex, les queries sont automatiquement revalidées, mais nous pouvons ajouter
+      // un feedback visuel supplémentaire
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Erreur lors de l'action";
       toast.error(errorMessage);
@@ -107,7 +133,7 @@ export function SidebarRight() {
                       : "bg-gray-900 text-white hover:bg-gray-800"
                     }`}
                   onClick={(e) => handleToggleFollow(e, community._id, community.name, community.isJoined)}
-                  disabled={!user} // Désactiver si pas connecté
+                  disabled={!user}
                 >
                   {community.isJoined ? "Ne plus suivre" : "Suivre"}
                 </Button>
@@ -117,7 +143,11 @@ export function SidebarRight() {
         </div>
 
         {communities && communities.length > 10 && (
-          <Button variant="ghost" className="w-full mt-4 text-orange-500 hover:text-orange-600 hover:bg-orange-50 text-sm">
+          <Button 
+            variant="ghost" 
+            className="w-full mt-4 text-orange-500 hover:text-orange-600 hover:bg-orange-50 text-sm"
+            onClick={() => router.push('/communities')}
+          >
             Voir plus
           </Button>
         )}
